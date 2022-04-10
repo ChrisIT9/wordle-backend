@@ -71,7 +71,6 @@ gamesRouter.patch('/:gameId', async (req, res) => {
 		return res
 			.status(200)
 			.json({ message: 'Ti sei unito alla partita!', game });
-		return res.status(200).json(game);
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
 	}
