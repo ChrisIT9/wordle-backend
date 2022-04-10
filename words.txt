@@ -101,7 +101,6 @@ amori
 ampie
 ampio
 ampli
-anch'
 anche
 andai
 andar
@@ -183,7 +182,6 @@ avida
 avide
 avidi
 avido
-avra'
 avrai
 avrei
 avuto
@@ -448,7 +446,6 @@ cigno
 cinse
 cinta
 cinto
-cioe'
 circa
 circo
 ciste
@@ -512,7 +509,6 @@ corto
 corvi
 corvo
 cosce
-cosi'
 cosmi
 cosmo
 costa
@@ -586,7 +582,6 @@ danza
 danze
 danzi
 danzo
-dara'
 darai
 darci
 darei
@@ -774,7 +769,6 @@ falla
 falle
 falli
 fallo
-falo'
 falsa
 false
 falsi
@@ -785,7 +779,6 @@ fanne
 fanno
 fante
 fanti
-fara'
 farai
 farci
 farei
@@ -1216,7 +1209,6 @@ menta
 mente
 menti
 mento
-menu'
 merce
 merci
 merli
@@ -1920,7 +1912,6 @@ santi
 santo
 saper
 sappi
-sara'
 sarai
 sarei
 sarta
