@@ -69,7 +69,7 @@ gamesRouter.get('/:gameId/lobby', requiresAuth, async (req, res) => {
 				// EMIT
 			});
 		});
-		return res.status(200).json(game);
+		return res.status(200).json({ game, isHost: game.host === req.session.username });
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
 	}

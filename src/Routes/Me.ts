@@ -10,7 +10,7 @@ meRouter.use(session);
 
 meRouter.get('/', requiresAuth, async (req: Request, res: Response) => {
 	const username = req.session.username;
-	const user: HydratedDocument<UserI> | null = await User.findOne({ username });
+	const user: HydratedDocument<UserI> | null = await User.findOne({ username }, 'username isAdmin');
 	return user
 		? res.status(200).json(user)
 		: res.status(401).json({ errors: ['Utente non trovato!'] });

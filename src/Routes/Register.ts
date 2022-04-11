@@ -58,7 +58,7 @@ registerRouter.post(
 				password: hashPsw,
 			});
 			await newUser.save();
-			return res.status(201).json({ username });
+			return res.status(201).json({ username, isAdmin: newUser.isAdmin });
 		} catch (error: any) {
 			return res.status(500).json({ errors: [error] });
 		}
