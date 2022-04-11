@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import session from '../Connections/session';
 import { passwordsMatch, requiresNoAuth } from '../Middlewares/auth';
 import { HydratedDocument } from 'mongoose'
+import { usernameChecker } from '../Middlewares/validation';
 
 const registerRouter = express.Router();
 
@@ -14,6 +15,8 @@ registerRouter.post(
 	'/',
 	requiresNoAuth,
 	body('username')
+		.custom(usernameChecker)
+		.withMessage('L\'username contiene caratteri non validi!')
 		.exists()
 		.trim()
 		.escape()

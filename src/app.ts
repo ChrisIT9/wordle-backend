@@ -12,6 +12,9 @@ import gamesRouter from './Routes/Games';
 import { customAlphabet } from 'nanoid';
 import path from 'path';
 import fs from 'fs';
+import io from './Connections/socket';
+
+io.emit('ciao');
 
 const nanoidAlphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 export const nanoid = customAlphabet(nanoidAlphabet, 21);
