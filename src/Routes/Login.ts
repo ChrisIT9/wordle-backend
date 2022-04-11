@@ -1,9 +1,10 @@
 import express, { Request, Response } from 'express';
-import User from '../Models/user.model';
+import User, { UserI } from '../Models/user.model';
 import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcrypt';
 import session from '../Connections/session';
 import { requiresNoAuth } from '../Middlewares/auth';
+import { HydratedDocument } from 'mongoose'
 
 const loginRouter = express.Router();
 loginRouter.use(session);
@@ -24,7 +25,7 @@ loginRouter.post(
 				.json({ errors: errors.array().map(item => item.msg) });
 		const { username, password } = req.body;
 		try {
-			let user = await User.findOne({ username });
+			let user: HydratedDocument<UserI> | null = await User.findOne({ username });
 			if (!user)
 				return res.status(400).json({ errors: ['Username non trovato!'] });
 			let comparePsw = await bcrypt.compare(password, user.password);

@@ -16,6 +16,12 @@ export const UserSchema = new mongoose.Schema({
 	},
 });
 
+export interface UserI {
+	username: string;
+	password: string;
+	isAdmin: boolean;
+}
+
 const User = mongoose.model('User', UserSchema);
 
 export default User;

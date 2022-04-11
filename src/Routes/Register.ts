@@ -1,9 +1,10 @@
 import express, { Request, Response } from 'express';
-import User from '../Models/user.model';
+import User, { UserI } from '../Models/user.model';
 import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcrypt';
 import session from '../Connections/session';
 import { passwordsMatch, requiresNoAuth } from '../Middlewares/auth';
+import { HydratedDocument } from 'mongoose'
 
 const registerRouter = express.Router();
 
@@ -38,11 +39,9 @@ registerRouter.post(
 			return res
 				.status(400)
 				.json({ errors: errors.array().map(item => item.msg) });
-
 		const { username, password } = req.body;
-
 		try {
-			const user = await User.findOne({
+			const user: HydratedDocument<UserI> | null = await User.findOne({
 				username,
 			});
 			if (user)
@@ -51,7 +50,7 @@ registerRouter.post(
 				password,
 				Number(process.env.SALT_ROUNDS)
 			);
-			const newUser = new User({
+			const newUser: HydratedDocument<UserI> = new User({
 				username,
 				password: hashPsw,
 			});

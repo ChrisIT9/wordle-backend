@@ -10,9 +10,13 @@ import cors from 'cors';
 import meRouter from './Routes/Me';
 import gamesRouter from './Routes/Games';
 import { customAlphabet } from 'nanoid';
+import path from 'path';
+import fs from 'fs';
 
 const nanoidAlphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 export const nanoid = customAlphabet(nanoidAlphabet, 21);
+
+export const words = fs.readFileSync(path.join(__dirname + '/../words.txt'), 'utf8').split("\n");
 
 const app = express();
 
