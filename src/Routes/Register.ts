@@ -21,6 +21,7 @@ registerRouter.post(
 		.exists()
 		.trim()
 		.escape()
+		.toLowerCase()
 		.withMessage(
 			`Il nome utente deve contenere almeno ${process.env.MIN_USERNAME_LEN} caratteri!`
 		),

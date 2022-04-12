@@ -5,7 +5,7 @@ import { requiresAuth } from '../Middlewares/auth';
 import Game, { GameI } from '../Models/game.model';
 import { getRandomWord } from '../Utils/random';
 import { nanoid, words } from '../app';
-import { GameStatus, LetterPosition, Lobby } from '../Typings/types';
+import { GameStatus, LetterPosition, Lobby, SocketEvent } from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
 import { getBoard, getMappedWord } from '../Utils/words';
 import {
@@ -22,6 +22,7 @@ import {
 	validationErrors,
 } from '../Utils/responses';
 import { generateLobby } from '../Utils/Sockets';
+import { closeAllGames } from '../Utils/server';
 
 const lobbies: Lobby[] = [];
 
@@ -34,9 +35,12 @@ gamesRouter.get('/', requiresAuth, async (req, res) => {
 	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const games: HydratedDocument<GameI>[] = await Game.find({
-			gameStatus: GameStatus.HAS_TO_START,
+			$and: [
+				{ gameStatus: GameStatus.HAS_TO_START },
+				{ players: { $ne: req.session.username } },
+			],
 		});
-		return res.status(200).json(games);
+		return res.status(200).json(games.filter(({ players }) => players.length < 2));
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
 	}
@@ -120,7 +124,7 @@ gamesRouter.put('/:gameId/status', async (req, res) => {
 		game.gameStatus = GameStatus.IN_PROGRESS;
 		await game.save();
 		const lobby = lobbies.find(lobby => lobby.gameId === gameId);
-		lobby && lobby.namespace.emit('GAME_STARTED');
+		lobby && lobby.namespace.emit(SocketEvent.GAME_STARTED);
 		return res.status(200).json({ message: 'Partita iniziata!', game });
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
@@ -166,7 +170,7 @@ gamesRouter.patch(
 			game.moves.push(`${req.session.username}/${providedWord}`);
 			const board = getBoard(getMappedWord(wordToFind), providedWord);
 			lobby &&
-				lobby.namespace.emit('GAME_MOVES', {
+				lobby.namespace.emit(SocketEvent.GAME_MOVES, {
 					user: req.session.username,
 					board,
 				});
@@ -174,21 +178,19 @@ gamesRouter.patch(
 				game.gameStatus = GameStatus.WON;
 				game.winner = req.session.username!;
 				lobby &&
-					lobby.namespace.emit('GAME_ENDED', {
+					lobby.namespace.emit(SocketEvent.GAME_ENDED, {
 						result: 'WON',
 						winner: req.session.username,
 					});
 			} else if (game.moves.length === 12) {
 				game.gameStatus = GameStatus.TIED;
-				lobby && lobby.namespace.emit('GAME_ENDED', { result: 'TIED' });
+				lobby && lobby.namespace.emit(SocketEvent.GAME_ENDED, { result: 'TIED' });
 			}
 			await game.save();
-			return res
-				.status(200)
-				.json({
-					board,
-					hasWon: board.every(letter => letter === LetterPosition.RIGHT),
-				});
+			return res.status(200).json({
+				board,
+				hasWon: board.every(letter => letter === LetterPosition.RIGHT),
+			});
 		} catch (error) {
 			return res.status(500).json({ errors: [error] });
 		}
@@ -218,6 +220,11 @@ gamesRouter.post('/', requiresAuth, async (req, res) => {
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
 	}
+});
+
+gamesRouter.patch('/', async (_, res) => {
+	await closeAllGames();
+	return res.status(204).json();
 });
 
 export default gamesRouter;

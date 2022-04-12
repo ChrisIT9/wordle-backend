@@ -13,7 +13,7 @@ loginRouter.use(session);
 loginRouter.post(
 	'/',
 	requiresNoAuth,
-	body('username').exists().withMessage('Username non valido!'),
+	body('username').toLowerCase().exists().withMessage('Username non valido!'),
 	body('password').exists().trim().escape().withMessage('Password non valida!'),
 	async (
 		req: Request<{}, {}, { username: string; password: string }>,

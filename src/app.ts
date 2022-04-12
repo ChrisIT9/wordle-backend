@@ -20,7 +20,7 @@ export const words = fs.readFileSync(path.join(__dirname + '/../words.txt'), 'ut
 
 const app = express();
 
-app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
+app.use(cors({ credentials: true, origin: 'http://192.168.1.200:3000' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
