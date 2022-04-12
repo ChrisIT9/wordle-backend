@@ -4,7 +4,8 @@ import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcrypt';
 import session from '../Connections/session';
 import { requiresNoAuth } from '../Middlewares/auth';
-import { HydratedDocument } from 'mongoose'
+import { HydratedDocument } from 'mongoose';
+import { validationErrors } from '../Utils/responses';
 
 const loginRouter = express.Router();
 loginRouter.use(session);
@@ -19,13 +20,12 @@ loginRouter.post(
 		res: Response
 	) => {
 		const errors = validationResult(req);
-		if (!errors.isEmpty())
-			return res
-				.status(400)
-				.json({ errors: errors.array().map(item => item.msg) });
+		if (!errors.isEmpty()) return validationErrors(res, errors);
 		const { username, password } = req.body;
 		try {
-			let user: HydratedDocument<UserI> | null = await User.findOne({ username });
+			let user: HydratedDocument<UserI> | null = await User.findOne({
+				username,
+			});
 			if (!user)
 				return res.status(400).json({ errors: ['Username non trovato!'] });
 			let comparePsw = await bcrypt.compare(password, user.password);

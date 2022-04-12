@@ -5,11 +5,25 @@ import { requiresAuth } from '../Middlewares/auth';
 import Game, { GameI } from '../Models/game.model';
 import { getRandomWord } from '../Utils/random';
 import { nanoid, words } from '../app';
-import { GameStatus, LetterPosition } from '../Typings/types';
+import { GameStatus, LetterPosition, Lobby } from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
-import { gamesNamespace } from '../Connections/socket';
+import io from '../Connections/socket';
+import { getBoard, getMappedWord } from '../Utils/words';
+import {
+	alreadyAPlayerError,
+	gameAlreadyOverError,
+	gameFullError,
+	gameNotFoundError,
+	gameNotReadyError,
+	invalidWordError,
+	missingPlayersError,
+	notAPlayerError,
+	notGameHostError,
+	outOfMovesError,
+	validationErrors,
+} from '../Utils/responses';
 
-const hosts: { socketId: string; gameId: string }[] = [];
+const lobbies: Lobby[] = [];
 
 const gamesRouter = express.Router();
 gamesRouter.use(session);
@@ -17,10 +31,7 @@ gamesRouter.use(session);
 // Get all games who haven't started yet
 gamesRouter.get('/', requiresAuth, async (req, res) => {
 	const errors = validationResult(req);
-	if (!errors.isEmpty())
-		return res
-			.status(400)
-			.json({ errors: errors.array().map(item => item.msg) });
+	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const games: HydratedDocument<GameI>[] = await Game.find({
 			gameStatus: GameStatus.HAS_TO_START,
@@ -31,79 +42,44 @@ gamesRouter.get('/', requiresAuth, async (req, res) => {
 	}
 });
 
+// Join a game lobby of which you're one of the players
 gamesRouter.get('/:gameId/lobby', requiresAuth, async (req, res) => {
 	const errors = validationResult(req);
-	if (!errors.isEmpty())
-		return res
-			.status(400)
-			.json({ errors: errors.array().map(item => item.msg) });
+	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const { gameId } = req.params;
 		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
-		if (!game)
-			return res
-				.status(404)
-				.json({ message: 'Nessuna partita esistente con questo id!' });
+		if (!game) return gameNotFoundError(res);
 		if (!game.players.includes(req.session.username!))
-			return res
-				.status(400)
-				.json({ message: 'Non sei un giocatore di questa partita!' });
+			return notAPlayerError(res);
 		if (
 			game.gameStatus === GameStatus.TIED ||
 			game.gameStatus === GameStatus.WON
 		)
-			return res.status(400).json({
-				message: 'La partita è già finita!',
-			});
-		gamesNamespace.on('connection', socket => {
-			socket.join(`games/${gameId}`);
-			if (req.session.username === game.host)
-				hosts.push({ gameId: game.gameId, socketId: socket.id });
-			socket.on('disconnect', async () => {
-				const hostIndex = hosts.findIndex(host => host.socketId === socket.id);
-				if (hostIndex !== -1 && game.gameStatus === GameStatus.HAS_TO_START) {
-					hosts.splice(hostIndex, 1);
-					await game.delete();
-					// EMIT QUALCOSA
-				}
-				// EMIT
-			});
-		});
-		return res.status(200).json({ game, isHost: game.host === req.session.username });
+			return gameAlreadyOverError(res);
+		return res
+			.status(200)
+			.json({ game, isHost: game.host === req.session.username });
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
 	}
 });
 
-// Join a game lobby of which you're one of the players
+// Join a game in progress of which you're one of the players
 gamesRouter.get('/:gameId', requiresAuth, async (req, res) => {
 	const errors = validationResult(req);
-	if (!errors.isEmpty())
-		return res
-			.status(400)
-			.json({ errors: errors.array().map(item => item.msg) });
+	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const { gameId } = req.params;
 		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
-		if (!game)
-			return res
-				.status(404)
-				.json({ message: 'Nessuna partita esistente con questo id!' });
+		if (!game) return gameNotFoundError(res);
 		if (!game.players.includes(req.session.username!))
-			return res
-				.status(400)
-				.json({ message: 'Non sei un giocatore di questa partita!' });
+			return notAPlayerError(res);
 		if (
 			game.gameStatus === GameStatus.TIED ||
 			game.gameStatus === GameStatus.WON
 		)
-			return res.status(400).json({
-				message: 'La partita è già finita!',
-			});
-		gamesNamespace.on('connection', socket => {
-			socket.join(`games/${gameId}`);
-			// EMIT QUALCOSA
-		});
+			return gameAlreadyOverError(res);
 		return res.status(200).json(game);
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
@@ -111,23 +87,16 @@ gamesRouter.get('/:gameId', requiresAuth, async (req, res) => {
 });
 
 // Joining a game as a player
-gamesRouter.patch('/:gameId', async (req, res) => {
+gamesRouter.patch('/:gameId/players', async (req, res) => {
 	const errors = validationResult(req);
-	if (!errors.isEmpty())
-		return res
-			.status(400)
-			.json({ errors: errors.array().map(item => item.msg) });
+	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const { gameId } = req.params;
 		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
-		if (!game)
-			return res
-				.status(404)
-				.json({ message: 'Nessuna partita esistente con questo id!' });
+		if (!game) return gameNotFoundError(res);
 		if (game.players.includes(req.session.username!))
-			return res.status(409).json({ message: 'Sei già in questa partita!' });
-		if (game.players.length === 2)
-			return res.status(400).json({ message: 'Partita al completo!' });
+			return alreadyAPlayerError(res);
+		if (game.players.length === 2) return gameFullError(res);
 		game.players.push(req.session.username!);
 		await game.save();
 		return res
@@ -139,27 +108,15 @@ gamesRouter.patch('/:gameId', async (req, res) => {
 });
 
 // Start a game
-gamesRouter.post('/:gameId/status', async (req, res) => {
+gamesRouter.put('/:gameId/status', async (req, res) => {
 	const errors = validationResult(req);
-	if (!errors.isEmpty())
-		return res
-			.status(400)
-			.json({ errors: errors.array().map(item => item.msg) });
+	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const { gameId } = req.params;
 		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
-		if (!game)
-			return res
-				.status(404)
-				.json({ message: 'Nessuna partita esistente con questo id!' });
-		if (game.host !== req.session.username)
-			return res
-				.status(403)
-				.json({ message: 'Non sei il proprietario di questa partita!' });
-		if (game.players.length < 2)
-			return res
-				.status(400)
-				.json({ message: 'Numero di giocatori insufficente!' });
+		if (!game) return gameNotFoundError(res);
+		if (game.host !== req.session.username) return notGameHostError(res);
+		if (game.players.length < 2) return missingPlayersError(res);
 		game.gameStatus = GameStatus.IN_PROGRESS;
 		await game.save();
 		return res.status(200).json({ message: 'Partita iniziata!', game });
@@ -169,7 +126,7 @@ gamesRouter.post('/:gameId/status', async (req, res) => {
 });
 
 // Make a move
-gamesRouter.post(
+gamesRouter.patch(
 	'/:gameId/moves',
 	requiresAuth,
 	body('word')
@@ -179,63 +136,49 @@ gamesRouter.post(
 		.withMessage('Formato non valido!')
 		.trim()
 		.escape()
+		.toLowerCase()
 		.isLength({ min: 5, max: 5 })
 		.withMessage('Lunghezza parola non valida!'),
 	async (req: Request<{ gameId: string }, {}, { word: string }>, res) => {
 		const errors = validationResult(req);
-		if (!errors.isEmpty())
-			return res
-				.status(400)
-				.json({ errors: errors.array().map(item => item.msg) });
+		if (!errors.isEmpty()) return validationErrors(res, errors);
 		try {
 			const { gameId } = req.params;
 			const { word: providedWord } = req.body;
 			const game: HydratedDocument<GameI> | null = await Game.findOne({
 				gameId,
 			});
-			if (!game)
-				return res
-					.status(404)
-					.json({ message: 'Nessuna partita esistente con questo id!' });
+			if (!game) return gameNotFoundError(res);
 			if (!game.players.includes(req.session.username!))
-				return res
-					.status(403)
-					.json({ message: 'Non sei un giocatore di questa partita!' });
+				return notAPlayerError(res);
 			if (game.gameStatus !== GameStatus.IN_PROGRESS)
-				return res.status(400).json({
-					message: 'La partita non è ancora iniziata o è già finita!',
-				});
-			if (!words.includes(providedWord))
-				return res.status(400).json({ message: 'Parola non valida!' });
+				return gameNotReadyError(res);
+			if (!words.includes(providedWord)) return invalidWordError(res);
+			// prettier-ignore
 			if (
-				game.moves.filter(move => move.includes(req.session.username!))
-					.length >= 999999
+				game.moves.filter(move => move.includes(req.session.username!)).length >= 6
 			)
-				return res.status(409).json({ message: 'Hai esaurito le mosse!' });
+				return outOfMovesError(res);
+			const lobby = lobbies.find(lobby => lobby.gameId === gameId);
 			const wordToFind = game.word;
 			game.moves.push(`${req.session.username}/${providedWord}`);
+			const board = getBoard(getMappedWord(wordToFind), providedWord);
+			lobby &&
+				lobby.namespace.emit('moves', { user: req.session.username, board });
 			if (wordToFind === providedWord) {
 				game.gameStatus = GameStatus.WON;
 				game.winner = req.session.username!;
-				// EMIT DI QUALCOSA
-			} else {
-				const targetWordLetters = wordToFind.split('');
-				const providedWordLetters = providedWord.split('');
-				const board: LetterPosition[] = providedWordLetters.map(
-					(letter, index) => {
-						if (letter === targetWordLetters[index])
-							return LetterPosition.RIGHT;
-						if (targetWordLetters.includes(letter))
-							return LetterPosition.WRONG_POSITION;
-						return LetterPosition.MISSING;
-					}
-				);
-				await game.save();
-				return res.status(200).json(board);
-				// EMIT QUALCOSA
+				lobby &&
+					lobby.namespace.emit('status', {
+						result: 'WON',
+						winner: req.session.username,
+					});
+			} else if (game.moves.length === 12) {
+				game.gameStatus = GameStatus.TIED;
+				lobby && lobby.namespace.emit('status', { result: 'TIED' });
 			}
 			await game.save();
-			return res.status(200).json({ message: 'OK', game });
+			return res.status(200).json(board);
 		} catch (error) {
 			return res.status(500).json({ errors: [error] });
 		}
@@ -245,10 +188,7 @@ gamesRouter.post(
 // Create a game
 gamesRouter.post('/', requiresAuth, async (req, res) => {
 	const errors = validationResult(req);
-	if (!errors.isEmpty())
-		return res
-			.status(400)
-			.json({ errors: errors.array().map(item => item.msg) });
+	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const word = getRandomWord();
 		const gameId = nanoid();
@@ -259,7 +199,27 @@ gamesRouter.post('/', requiresAuth, async (req, res) => {
 			players: [req.session.username],
 		});
 		await newGame.save();
-		return res.status(200).json({
+		const lobby: Lobby = {
+			gameId,
+			namespace: io.of(`/games/${gameId}`),
+			hostSocketId: undefined,
+		};
+		console.log(`[SOCKET.IO] Created lobby for game ${gameId}.`);
+		lobbies.push(lobby);
+		lobby.namespace.on('connection', socket => {
+			console.log(`${socket.id} connected to ${gameId}.`);
+			socket.on('HOST_ACK', () => {
+				lobby.hostSocketId = socket.id;
+				console.log(`${socket.id} identified itself as the host.`);
+			});
+			socket.on('disconnect', () => {
+				const socketIsHost = lobby.hostSocketId === socket.id;
+				console.log(
+					`${socket.id} disconnected from ${gameId}. Is host: ${socketIsHost}`
+				);
+			});
+		});
+		return res.status(201).json({
 			message: 'Partita creata con successo!',
 			game: newGame,
 		});

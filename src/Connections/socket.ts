@@ -6,12 +6,4 @@ const io = new Server(Number(process.env.SOCKET_PORT), {
 	transports: ['websocket']
 });
 
-io.on('connection', socket => {
-	console.log(`[SOCKET.IO] ${socket.id} connected!`);
-
-	socket.on('disconnect', () => console.log(socket.rooms));
-});
-
-export const gamesNamespace = io.of('/games');
-
 export default io;

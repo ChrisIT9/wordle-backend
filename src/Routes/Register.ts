@@ -4,8 +4,9 @@ import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcrypt';
 import session from '../Connections/session';
 import { passwordsMatch, requiresNoAuth } from '../Middlewares/auth';
-import { HydratedDocument } from 'mongoose'
+import { HydratedDocument } from 'mongoose';
 import { usernameChecker } from '../Middlewares/validation';
+import { validationErrors } from '../Utils/responses';
 
 const registerRouter = express.Router();
 
@@ -16,7 +17,7 @@ registerRouter.post(
 	requiresNoAuth,
 	body('username')
 		.custom(usernameChecker)
-		.withMessage('L\'username contiene caratteri non validi!')
+		.withMessage("L'username contiene caratteri non validi!")
 		.exists()
 		.trim()
 		.escape()
@@ -38,10 +39,7 @@ registerRouter.post(
 		res: Response
 	) => {
 		const errors = validationResult(req);
-		if (!errors.isEmpty())
-			return res
-				.status(400)
-				.json({ errors: errors.array().map(item => item.msg) });
+		if (!errors.isEmpty()) return validationErrors(res, errors);
 		const { username, password } = req.body;
 		try {
 			const user: HydratedDocument<UserI> | null = await User.findOne({
