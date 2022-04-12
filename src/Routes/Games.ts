@@ -5,9 +5,8 @@ import { requiresAuth } from '../Middlewares/auth';
 import Game, { GameI } from '../Models/game.model';
 import { getRandomWord } from '../Utils/random';
 import { nanoid, words } from '../app';
-import { GameStatus, LetterPosition, Lobby } from '../Typings/types';
+import { GameStatus, Lobby } from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
-import io from '../Connections/socket';
 import { getBoard, getMappedWord } from '../Utils/words';
 import {
 	alreadyAPlayerError,
@@ -22,6 +21,7 @@ import {
 	outOfMovesError,
 	validationErrors,
 } from '../Utils/responses';
+import { generateLobby } from '../Utils/Sockets';
 
 const lobbies: Lobby[] = [];
 
@@ -99,6 +99,7 @@ gamesRouter.patch('/:gameId/players', async (req, res) => {
 		if (game.players.length === 2) return gameFullError(res);
 		game.players.push(req.session.username!);
 		await game.save();
+		// EMIT NOTIFICA
 		return res
 			.status(200)
 			.json({ message: 'Ti sei unito alla partita!', game });
@@ -119,6 +120,7 @@ gamesRouter.put('/:gameId/status', async (req, res) => {
 		if (game.players.length < 2) return missingPlayersError(res);
 		game.gameStatus = GameStatus.IN_PROGRESS;
 		await game.save();
+		// EMIT START
 		return res.status(200).json({ message: 'Partita iniziata!', game });
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
@@ -199,26 +201,8 @@ gamesRouter.post('/', requiresAuth, async (req, res) => {
 			players: [req.session.username],
 		});
 		await newGame.save();
-		const lobby: Lobby = {
-			gameId,
-			namespace: io.of(`/games/${gameId}`),
-			hostSocketId: undefined,
-		};
-		console.log(`[SOCKET.IO] Created lobby for game ${gameId}.`);
+		const lobby: Lobby = generateLobby(gameId);
 		lobbies.push(lobby);
-		lobby.namespace.on('connection', socket => {
-			console.log(`${socket.id} connected to ${gameId}.`);
-			socket.on('HOST_ACK', () => {
-				lobby.hostSocketId = socket.id;
-				console.log(`${socket.id} identified itself as the host.`);
-			});
-			socket.on('disconnect', () => {
-				const socketIsHost = lobby.hostSocketId === socket.id;
-				console.log(
-					`${socket.id} disconnected from ${gameId}. Is host: ${socketIsHost}`
-				);
-			});
-		});
 		return res.status(201).json({
 			message: 'Partita creata con successo!',
 			game: newGame,

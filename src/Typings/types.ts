@@ -1,4 +1,4 @@
-import { Namespace } from "socket.io";
+import { Namespace } from 'socket.io';
 
 export enum GameStatus {
 	HAS_TO_START = 'HAS TO START',
@@ -21,7 +21,13 @@ export interface MappedWord {
 }
 
 export interface Lobby {
-  hostSocketId: string | undefined,
-  namespace: Namespace,
-  gameId: string
+	hostSocketId: string | undefined;
+	namespace: Namespace;
+	gameId: string;
+}
+
+export interface SocketInfo {
+	user: string;
+	gameId: string;
+	isHost: boolean
 }
