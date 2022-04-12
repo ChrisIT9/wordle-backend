@@ -38,6 +38,7 @@ export const generateLobby = (gameId: string): Lobby => {
       return;
     }
     console.log(`[SOCKET.IO] ${socket.data.user || socket.id} connected to ${gameId}.`);
+    lobby.namespace.emit('PLAYER_CONNECTED', socket.data.user);
 		socket.data = {
 			...socket.data,
 			isHost: socket.data.user === gameAtConnection.host,
@@ -52,13 +53,13 @@ export const generateLobby = (gameId: string): Lobby => {
 			if (gameAtDisconnection && gameAtDisconnection.gameStatus === GameStatus.HAS_TO_START) {
         if (socket.data.isHost) {
           console.log(`[SOCKET.IO] Host disconnected from the lobby ${gameId}. Disbanding game...`);
-          lobby.namespace.emit('HOST_DISCONNECTED');
+          lobby.namespace.emit('HOST_DISCONNECTED', socket.data.user);
           await gameAtDisconnection.delete();
         } else {
           console.log(`[SOCKET.IO] ${socket.data.user || socket.id} disconnected from ${gameId}.`);
           const playerIndex = gameAtDisconnection.players.findIndex(player => player === socket.data.user);
           playerIndex !== -1 && gameAtDisconnection.players.splice(playerIndex, 1);
-          lobby.namespace.emit('PLAYER_DISCONNECTED', { user: socket.data.user });
+          lobby.namespace.emit('PLAYER_DISCONNECTED', socket.data.user);
           await gameAtDisconnection.save();
         }
       }

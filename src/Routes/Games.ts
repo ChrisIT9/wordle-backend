@@ -5,7 +5,7 @@ import { requiresAuth } from '../Middlewares/auth';
 import Game, { GameI } from '../Models/game.model';
 import { getRandomWord } from '../Utils/random';
 import { nanoid, words } from '../app';
-import { GameStatus, Lobby } from '../Typings/types';
+import { GameStatus, LetterPosition, Lobby } from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
 import { getBoard, getMappedWord } from '../Utils/words';
 import {
@@ -99,7 +99,6 @@ gamesRouter.patch('/:gameId/players', async (req, res) => {
 		if (game.players.length === 2) return gameFullError(res);
 		game.players.push(req.session.username!);
 		await game.save();
-		// EMIT NOTIFICA
 		return res
 			.status(200)
 			.json({ message: 'Ti sei unito alla partita!', game });
@@ -120,7 +119,8 @@ gamesRouter.put('/:gameId/status', async (req, res) => {
 		if (game.players.length < 2) return missingPlayersError(res);
 		game.gameStatus = GameStatus.IN_PROGRESS;
 		await game.save();
-		// EMIT START
+		const lobby = lobbies.find(lobby => lobby.gameId === gameId);
+		lobby && lobby.namespace.emit('GAME_STARTED');
 		return res.status(200).json({ message: 'Partita iniziata!', game });
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
@@ -166,21 +166,29 @@ gamesRouter.patch(
 			game.moves.push(`${req.session.username}/${providedWord}`);
 			const board = getBoard(getMappedWord(wordToFind), providedWord);
 			lobby &&
-				lobby.namespace.emit('moves', { user: req.session.username, board });
+				lobby.namespace.emit('GAME_MOVES', {
+					user: req.session.username,
+					board,
+				});
 			if (wordToFind === providedWord) {
 				game.gameStatus = GameStatus.WON;
 				game.winner = req.session.username!;
 				lobby &&
-					lobby.namespace.emit('status', {
+					lobby.namespace.emit('GAME_ENDED', {
 						result: 'WON',
 						winner: req.session.username,
 					});
 			} else if (game.moves.length === 12) {
 				game.gameStatus = GameStatus.TIED;
-				lobby && lobby.namespace.emit('status', { result: 'TIED' });
+				lobby && lobby.namespace.emit('GAME_ENDED', { result: 'TIED' });
 			}
 			await game.save();
-			return res.status(200).json(board);
+			return res
+				.status(200)
+				.json({
+					board,
+					hasWon: board.every(letter => letter === LetterPosition.RIGHT),
+				});
 		} catch (error) {
 			return res.status(500).json({ errors: [error] });
 		}
