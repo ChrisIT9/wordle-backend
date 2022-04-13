@@ -5,7 +5,12 @@ import { requiresAuth } from '../Middlewares/auth';
 import Game, { GameI } from '../Models/game.model';
 import { getRandomWord } from '../Utils/random';
 import { nanoid, words } from '../app';
-import { GameStatus, LetterPosition, Lobby, SocketEvent } from '../Typings/types';
+import {
+	GameStatus,
+	LetterPosition,
+	Lobby,
+	SocketEvent,
+} from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
 import { getBoard, getMappedWord } from '../Utils/words';
 import {
@@ -40,7 +45,9 @@ gamesRouter.get('/', requiresAuth, async (req, res) => {
 				{ players: { $ne: req.session.username } },
 			],
 		});
-		return res.status(200).json(games.filter(({ players }) => players.length < 2));
+		return res
+			.status(200)
+			.json(games.filter(({ players }) => players.length < 2));
 	} catch (error) {
 		return res.status(500).json({ errors: [error] });
 	}
@@ -161,10 +168,11 @@ gamesRouter.patch(
 				return gameNotReadyError(res);
 			if (!words.includes(providedWord)) return invalidWordError(res);
 			// prettier-ignore
-			if (
-				game.moves.filter(move => move.includes(req.session.username!)).length >= 6
-			)
-				return outOfMovesError(res);
+			const userMoves = game.moves.filter(move => {
+				const [username] = move.split('/');
+				return username === req.session.username;
+			});
+			if (userMoves.length >= 6) return outOfMovesError(res);
 			const lobby = lobbies.find(lobby => lobby.gameId === gameId);
 			const wordToFind = game.word;
 			game.moves.push(`${req.session.username}/${providedWord}`);
@@ -181,10 +189,12 @@ gamesRouter.patch(
 					lobby.namespace.emit(SocketEvent.GAME_ENDED, {
 						result: 'WON',
 						winner: req.session.username,
+						word: game.word
 					});
 			} else if (game.moves.length === 12) {
 				game.gameStatus = GameStatus.TIED;
-				lobby && lobby.namespace.emit(SocketEvent.GAME_ENDED, { result: 'TIED' });
+				lobby &&
+					lobby.namespace.emit(SocketEvent.GAME_ENDED, { result: 'TIED', word: game.word });
 			}
 			await game.save();
 			return res.status(200).json({
