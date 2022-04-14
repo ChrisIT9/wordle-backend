@@ -189,12 +189,15 @@ gamesRouter.patch(
 					lobby.namespace.emit(SocketEvent.GAME_ENDED, {
 						result: 'WON',
 						winner: req.session.username,
-						word: game.word
+						word: game.word,
 					});
 			} else if (game.moves.length === 12) {
 				game.gameStatus = GameStatus.TIED;
 				lobby &&
-					lobby.namespace.emit(SocketEvent.GAME_ENDED, { result: 'TIED', word: game.word });
+					lobby.namespace.emit(SocketEvent.GAME_ENDED, {
+						result: 'TIED',
+						word: game.word,
+					});
 			}
 			await game.save();
 			return res.status(200).json({
