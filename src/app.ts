@@ -13,6 +13,7 @@ import { customAlphabet } from 'nanoid';
 import path from 'path';
 import fs from 'fs';
 import { closeAllGames } from './Utils/server';
+import usersRouter from './Routes/Profile';
 
 const nanoidAlphabet =
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -33,6 +34,7 @@ app.use('/auth/register', registerRouter);
 app.use('/auth/logout', logoutRouter);
 app.use('/auth/me', meRouter);
 app.use('/games', gamesRouter);
+app.use('/users', usersRouter);
 
 const serverPort = process.env.SERVER_PORT;
 

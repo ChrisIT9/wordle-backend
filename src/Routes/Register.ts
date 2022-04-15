@@ -22,16 +22,9 @@ registerRouter.post(
 		.trim()
 		.escape()
 		.toLowerCase()
-		.withMessage(
-			`Il nome utente deve contenere almeno ${process.env.MIN_USERNAME_LEN} caratteri!`
-		),
-	body('password')
-		.exists()
-		.trim()
-		.escape()
-		.withMessage(
-			`La password deve contenere almeno ${process.env.MIN_PASS_LEN} caratteri!`
-		),
+		.isLength({ max: 20 })
+		.withMessage("L'username è troppo lungo!"),
+	body('password').exists().trim().escape(),
 	body('passwordConfirmation')
 		.custom(passwordsMatch)
 		.withMessage('Le password non corrispondono!'),

@@ -11,6 +11,7 @@ export enum LetterPosition {
 	MISSING = 'WRONG',
 	RIGHT = 'RIGHT',
 	WRONG_POSITION = 'WRONG POSITION',
+	EMPTY = 'EMPTY'
 }
 
 export enum SocketEvent {
@@ -28,6 +29,13 @@ export interface MappedWord {
 		indexes: number[];
 		left: number;
 	};
+}
+
+export interface Board {
+	[key: number]: {
+		word: string | undefined,
+		letterPositions: LetterPosition[]
+	}
 }
 
 export interface Lobby {

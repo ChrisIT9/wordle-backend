@@ -1,4 +1,4 @@
-import { LetterPosition, MappedWord } from '../Typings/types';
+import { Board, LetterPosition, MappedWord } from '../Typings/types';
 
 export const getMappedWord = (word: string): MappedWord => {
 	return word.split('').reduce((acc, letter, index) => {
@@ -44,5 +44,18 @@ export const getBoard = (
 				: (board[index] = LetterPosition.MISSING);
 		}
 	});
+	return board;
+};
+
+export const generateEmptyBoard = (): Board => {
+	const board: Board = {};
+	const defaultLetterPositions: LetterPosition[] = [];
+	for (let x = 0; x < 5; x++) defaultLetterPositions[x] = LetterPosition.EMPTY;
+	for (let i = 0; i < 6; i++) {
+		board[i] = {
+			word: undefined,
+			letterPositions: defaultLetterPositions,
+		};
+	}
 	return board;
 };
