@@ -25,6 +25,8 @@ export const words = fs
 
 const app = express();
 
+app.set('trust proxy', 1) // trust first proxy
+
 app.use(cors({ credentials: true, origin: 'https://eldrom.netlify.app' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
