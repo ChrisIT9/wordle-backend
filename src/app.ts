@@ -46,4 +46,8 @@ const appServer = app.listen(serverPort, () => {
 	closeAllGames();
 });
 
-export const io = new socketIo.Server(appServer);
+export const io = new socketIo.Server(appServer, {
+	transports: ['websocket'],
+	pingInterval: Number(process.env.PING_INTERVAL),
+	pingTimeout: Number(process.env.PING_TIMEOUT),
+});
