@@ -25,7 +25,7 @@ export const words = fs
 
 const app = express();
 
-app.use(cors({ credentials: true, origin: 'http://192.168.1.200:3000' }));
+app.use(cors({ credentials: true, origin: 'https://eldrom.netlify.app' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -36,7 +36,7 @@ app.use('/auth/me', meRouter);
 app.use('/games', gamesRouter);
 app.use('/users', usersRouter);
 
-const serverPort = process.env.SERVER_PORT;
+const serverPort = process.env.PORT || process.env.SERVER_PORT;
 
 app.listen(serverPort, () => {
 	console.log(`[SERVER] Server online on port ${serverPort}.`);
