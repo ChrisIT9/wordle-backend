@@ -13,7 +13,7 @@ const session = expS({
 	saveUninitialized: true,
 	resave: false,
 	cookie: {
-		sameSite: 'lax',
+		sameSite: 'none',
 		secure: true,
 		httpOnly: false,
 		maxAge: 1000 * 14 * 24 * 60 * 60,
