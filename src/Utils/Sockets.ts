@@ -1,4 +1,4 @@
-import io from '../Connections/socket';
+import { io } from '../app';
 import { GameStatus, Lobby, SocketEvent } from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
 import Game, { GameI } from '../Models/game.model';

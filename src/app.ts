@@ -14,6 +14,7 @@ import path from 'path';
 import fs from 'fs';
 import { closeAllGames } from './Utils/server';
 import usersRouter from './Routes/Profile';
+import socketIo from 'socket.io';
 
 const nanoidAlphabet =
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -40,7 +41,9 @@ app.use('/users', usersRouter);
 
 const serverPort = process.env.PORT || process.env.SERVER_PORT;
 
-app.listen(serverPort, () => {
+const appServer = app.listen(serverPort, () => {
 	console.log(`[SERVER] Server online on port ${serverPort}.`);
 	closeAllGames();
 });
+
+export const io = new socketIo.Server(appServer);
