@@ -11,7 +11,7 @@ export const validationErrors = (
 export const gameNotFoundError = (res: Response) => {
 	return res
 		.status(404)
-		.json({ message: 'Nessuna partita esistente con questo id!' });
+		.json({ message: 'Nessuna partita esistente con questo ID!' });
 };
 
 export const notAPlayerError = (res: Response) => {

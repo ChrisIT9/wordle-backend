@@ -28,6 +28,7 @@ import {
 } from '../Utils/responses';
 import { generateLobby } from '../Utils/Sockets';
 import { closeAllGames } from '../Utils/server';
+import bcrypt from 'bcrypt';
 
 const lobbies: Lobby[] = [];
 
@@ -98,25 +99,43 @@ gamesRouter.get('/:gameId', requiresAuth, async (req, res) => {
 });
 
 // Joining a game as a player
-gamesRouter.patch('/:gameId/players', async (req, res) => {
-	const errors = validationResult(req);
-	if (!errors.isEmpty()) return validationErrors(res, errors);
-	try {
-		const { gameId } = req.params;
-		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
-		if (!game) return gameNotFoundError(res);
-		if (game.players.includes(req.session.username!))
-			return alreadyAPlayerError(res);
-		if (game.players.length === 2) return gameFullError(res);
-		game.players.push(req.session.username!);
-		await game.save();
-		return res
-			.status(200)
-			.json({ message: 'Ti sei unito alla partita!', game });
-	} catch (error) {
-		return res.status(500).json({ errors: [error] });
+gamesRouter.patch(
+	'/:gameId/players',
+	async (
+		req: Request<{ gameId: string }, {}, { password: string | undefined }>,
+		res
+	) => {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) return validationErrors(res, errors);
+		try {
+			const { gameId } = req.params;
+			const { password } = req.body;
+			const game: HydratedDocument<GameI> | null = await Game.findOne({
+				gameId,
+			});
+			if (!game) return gameNotFoundError(res);
+			if (game.players.includes(req.session.username!))
+				return alreadyAPlayerError(res);
+			if (game.players.length === 2) return gameFullError(res);
+			game.players.push(req.session.username!);
+			if (game.password) {
+				if (!password)
+					return res.status(403).json({ message: 'Fornire una password!' });
+				const passwordsMatch = await bcrypt.compare(password, game.password);
+				if (!passwordsMatch)
+					return res
+						.status(400)
+						.json({ message: 'La password non corrisponde!' });
+			}
+			await game.save();
+			return res
+				.status(200)
+				.json({ message: 'Ti sei unito alla partita!', game });
+		} catch (error) {
+			return res.status(500).json({ errors: [error] });
+		}
 	}
-});
+);
 
 // Start a game
 gamesRouter.put('/:gameId/status', async (req, res) => {
@@ -211,29 +230,37 @@ gamesRouter.patch(
 );
 
 // Create a game
-gamesRouter.post('/', requiresAuth, async (req, res) => {
-	const errors = validationResult(req);
-	if (!errors.isEmpty()) return validationErrors(res, errors);
-	try {
-		const word = getRandomWord();
-		const gameId = nanoid();
-		const newGame: HydratedDocument<GameI> = new Game({
-			gameId,
-			word,
-			host: req.session.username!,
-			players: [req.session.username],
-		});
-		await newGame.save();
-		const lobby: Lobby = generateLobby(gameId);
-		lobbies.push(lobby);
-		return res.status(201).json({
-			message: 'Partita creata con successo!',
-			game: newGame,
-		});
-	} catch (error) {
-		return res.status(500).json({ errors: [error] });
+gamesRouter.post(
+	'/',
+	requiresAuth,
+	async (req: Request<{}, {}, { password: string | undefined }>, res) => {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) return validationErrors(res, errors);
+		try {
+			const { password } = req.body;
+			const word = getRandomWord();
+			const gameId = nanoid();
+			const newGame: HydratedDocument<GameI> = new Game({
+				gameId,
+				word,
+				host: req.session.username!,
+				players: [req.session.username],
+				password: password
+					? await bcrypt.hash(password, Number(process.env.SALT_ROUNDS))
+					: undefined,
+			});
+			await newGame.save();
+			const lobby: Lobby = generateLobby(gameId);
+			lobbies.push(lobby);
+			return res.status(201).json({
+				message: 'Partita creata con successo!',
+				game: newGame,
+			});
+		} catch (error) {
+			return res.status(500).json({ errors: [error] });
+		}
 	}
-});
+);
 
 gamesRouter.patch('/', async (_, res) => {
 	await closeAllGames();

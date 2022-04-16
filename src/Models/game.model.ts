@@ -33,6 +33,10 @@ const GameSchema = new mongoose.Schema({
 	date: {
 		type: Date,
 		default: Date.now
+	},
+	password: {
+		type: String,
+		default: undefined
 	}
 });
 
@@ -45,6 +49,7 @@ export interface GameI {
 	moves: string[];
 	host: string;
 	date: string | undefined;
+	password: string | undefined;
 }
 
 const Game = mongoose.model('Game', GameSchema);
