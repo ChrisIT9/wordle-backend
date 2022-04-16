@@ -14,8 +14,8 @@ const session = expS({
 	resave: false,
 	cookie: {
 		sameSite: 'lax',
-		secure: false,
-		httpOnly: true,
+		secure: true,
+		httpOnly: false,
 		maxAge: 1000 * 14 * 24 * 60 * 60,
 	},
 	store: MongoStore.create({
