@@ -27,7 +27,6 @@ import {
 	validationErrors,
 } from '../Utils/responses';
 import { generateLobby } from '../Utils/Sockets';
-import { closeAllGames } from '../Utils/server';
 import bcrypt from 'bcrypt';
 
 const lobbies: Lobby[] = [];
