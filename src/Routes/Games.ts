@@ -39,12 +39,15 @@ gamesRouter.get('/', requiresAuth, async (req, res) => {
 	const errors = validationResult(req);
 	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
-		const games: HydratedDocument<GameI>[] = await Game.find({
-			$and: [
-				{ gameStatus: GameStatus.HAS_TO_START },
-				{ players: { $ne: req.session.username } },
-			],
-		});
+		const games: HydratedDocument<GameI>[] = await Game.find(
+			{
+				$and: [
+					{ gameStatus: GameStatus.HAS_TO_START },
+					{ players: { $ne: req.session.username } },
+				],
+			},
+			'-word'
+		);
 		return res
 			.status(200)
 			.json(games.filter(({ players }) => players.length < 2));
@@ -59,7 +62,10 @@ gamesRouter.get('/:gameId/lobby', requiresAuth, async (req, res) => {
 	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const { gameId } = req.params;
-		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
+		const game: HydratedDocument<GameI> | null = await Game.findOne(
+			{ gameId },
+			'-word'
+		);
 		if (!game) return gameNotFoundError(res);
 		if (!game.players.includes(req.session.username!))
 			return notAPlayerError(res);
@@ -82,7 +88,10 @@ gamesRouter.get('/:gameId', requiresAuth, async (req, res) => {
 	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const { gameId } = req.params;
-		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
+		const game: HydratedDocument<GameI> | null = await Game.findOne(
+			{ gameId },
+			'-word'
+		);
 		if (!game) return gameNotFoundError(res);
 		if (!game.players.includes(req.session.username!))
 			return notAPlayerError(res);
@@ -109,9 +118,12 @@ gamesRouter.patch(
 		try {
 			const { gameId } = req.params;
 			const { password } = req.body;
-			const game: HydratedDocument<GameI> | null = await Game.findOne({
-				gameId,
-			});
+			const game: HydratedDocument<GameI> | null = await Game.findOne(
+				{
+					gameId,
+				},
+				'-word'
+			);
 			if (!game) return gameNotFoundError(res);
 			if (game.players.includes(req.session.username!))
 				return alreadyAPlayerError(res);
@@ -142,7 +154,10 @@ gamesRouter.put('/:gameId/status', async (req, res) => {
 	if (!errors.isEmpty()) return validationErrors(res, errors);
 	try {
 		const { gameId } = req.params;
-		const game: HydratedDocument<GameI> | null = await Game.findOne({ gameId });
+		const game: HydratedDocument<GameI> | null = await Game.findOne(
+			{ gameId },
+			'-word'
+		);
 		if (!game) return gameNotFoundError(res);
 		if (game.host !== req.session.username) return notGameHostError(res);
 		if (game.players.length < 2) return missingPlayersError(res);
@@ -253,7 +268,12 @@ gamesRouter.post(
 			lobbies.push(lobby);
 			return res.status(201).json({
 				message: 'Partita creata con successo!',
-				game: newGame,
+				game: {
+					gameId: newGame.gameId,
+					date: newGame.date,
+					host: newGame.host,
+					players: newGame.players,
+				},
 			});
 		} catch (error) {
 			return res.status(500).json({ errors: [error] });
