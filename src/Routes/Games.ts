@@ -262,9 +262,4 @@ gamesRouter.post(
 	}
 );
 
-gamesRouter.patch('/', async (_, res) => {
-	await closeAllGames();
-	return res.status(204).json();
-});
-
 export default gamesRouter;
