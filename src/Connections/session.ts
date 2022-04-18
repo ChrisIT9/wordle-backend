@@ -1,4 +1,6 @@
 import expS from 'express-session';
+import MongoStore from 'connect-mongo';
+import { dbUrl } from './db_connection';
 
 declare module 'express-session' {
 	export interface SessionData {
@@ -13,8 +15,14 @@ const session = expS({
 	cookie: {
 		sameSite: 'lax',
 		secure: false,
-		httpOnly: true
-	}
+		httpOnly: true,
+		maxAge: 1000 * 14 * 24 * 60 * 60,
+	},
+	store: MongoStore.create({
+		mongoUrl: dbUrl,
+		collectionName: 'sessions',
+		touchAfter: 24 * 3600,
+	}),
 });
 
 export default session;
