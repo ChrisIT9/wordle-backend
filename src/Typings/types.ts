@@ -48,3 +48,9 @@ export interface SocketInfo {
 	gameId: string;
 	isHost: boolean
 }
+
+export interface Move {
+	user: string,
+	gameId: string,
+	when: number
+}

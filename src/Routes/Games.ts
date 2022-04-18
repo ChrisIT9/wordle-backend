@@ -9,6 +9,7 @@ import {
 	GameStatus,
 	LetterPosition,
 	Lobby,
+	Move,
 	SocketEvent,
 } from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
@@ -30,6 +31,7 @@ import { destroyLobby, generateLobby } from '../Utils/Sockets';
 import bcrypt from 'bcrypt';
 
 export const lobbies: Lobby[] = [];
+let moves: Move[] = [];
 
 const gamesRouter = express.Router();
 gamesRouter.use(session);
@@ -206,6 +208,22 @@ gamesRouter.patch(
 				return username === req.session.username;
 			});
 			if (userMoves.length >= 6) return outOfMovesError(res);
+			const previousMoveIndex = moves.findIndex(
+				move => game.gameId === gameId && move.user === req.session.username
+			);
+			if (previousMoveIndex !== -1) {
+				if (Date.now() - moves[previousMoveIndex].when < 500)
+					return res
+						.status(429)
+						.json({ message: 'Rilevato doppio invio. Ignoro.' });
+				else
+					moves[previousMoveIndex] = {
+						user: req.session.username!,
+						gameId,
+						when: Date.now(),
+					};
+			} else
+				moves.push({ user: req.session.username!, gameId, when: Date.now() });
 			const lobby = lobbies.find(lobby => lobby.gameId === gameId);
 			const wordToFind = game.word;
 			game.moves.push(`${req.session.username}/${providedWord}`);
@@ -225,6 +243,7 @@ gamesRouter.patch(
 						word: game.word,
 					}) &&
 					destroyLobby(lobby);
+				moves = moves.filter(move => move.gameId !== gameId);
 			} else if (game.moves.length === 12) {
 				game.gameStatus = GameStatus.TIED;
 				lobby &&
@@ -233,6 +252,7 @@ gamesRouter.patch(
 						word: game.word,
 					}) &&
 					destroyLobby(lobby);
+				moves = moves.filter(move => move.gameId !== gameId);
 			}
 			await game.save();
 			return res.status(200).json({
