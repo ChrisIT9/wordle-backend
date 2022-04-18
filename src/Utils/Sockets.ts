@@ -2,12 +2,12 @@ import io from '../Connections/socket';
 import { GameStatus, Lobby, SocketEvent } from '../Typings/types';
 import { HydratedDocument } from 'mongoose';
 import Game, { GameI } from '../Models/game.model';
+import { lobbies } from '../Routes/Games';
 
 export const generateLobby = (gameId: string): Lobby => {
 	const lobby: Lobby = {
 		gameId,
 		namespace: io.of(`/games/${gameId}`),
-		hostSocketId: undefined,
 	};
 	console.log(`[SOCKET.IO] Created lobby for game ${gameId}.`);
 	const connectedUsers: string[] = [];
@@ -44,20 +44,19 @@ export const generateLobby = (gameId: string): Lobby => {
 		}
 		const isHost = socket.data.user === gameAtConnection.host;
 		if (!connectedUsers.includes(socket.data.user)) {
-      console.log(
-        `[SOCKET.IO] ${socket.data.user || socket.id} ${
-          isHost ? '(HOST)' : ''
-        } connected to ${gameId}.`
-      );
-      connectedUsers.push(socket.data.user);
-    }
-		else {
+			console.log(
+				`[SOCKET.IO] ${socket.data.user || socket.id} ${
+					isHost ? '(HOST)' : ''
+				} connected to ${gameId}.`
+			);
+			connectedUsers.push(socket.data.user);
+		} else {
 			console.log(
 				`[SOCKET.IO] ${
 					socket.data.user || socket.id
 				} connected but a socket for the user already exists. Disconnecting.`
 			);
-      socket.emit(SocketEvent.SOCKET_CONFLICT);
+			socket.emit(SocketEvent.SOCKET_CONFLICT);
 			socket.disconnect();
 			return;
 		}
@@ -85,6 +84,7 @@ export const generateLobby = (gameId: string): Lobby => {
 					);
 					await gameAtDisconnection.delete();
 					lobby.namespace.emit(SocketEvent.HOST_DISCONNECTED, socket.data.user);
+					destroyLobby(lobby);
 				} else {
 					console.log(
 						`[SOCKET.IO] ${
@@ -106,4 +106,12 @@ export const generateLobby = (gameId: string): Lobby => {
 		});
 	});
 	return lobby;
+};
+
+export const destroyLobby = (lobby: Lobby) => {
+	lobby.namespace.disconnectSockets();
+	lobby.namespace.removeAllListeners();
+	io._nsps.delete(`/games/${lobby.gameId}`);
+	const lobbyIndex = lobbies.findIndex(({ gameId }) => gameId === lobby.gameId);
+	lobbyIndex !== -1 && lobbies.splice(lobbyIndex, 1);
 };

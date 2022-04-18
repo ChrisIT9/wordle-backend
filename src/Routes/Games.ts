@@ -26,10 +26,10 @@ import {
 	outOfMovesError,
 	validationErrors,
 } from '../Utils/responses';
-import { generateLobby } from '../Utils/Sockets';
+import { destroyLobby, generateLobby } from '../Utils/Sockets';
 import bcrypt from 'bcrypt';
 
-const lobbies: Lobby[] = [];
+export const lobbies: Lobby[] = [];
 
 const gamesRouter = express.Router();
 gamesRouter.use(session);
@@ -223,14 +223,16 @@ gamesRouter.patch(
 						result: 'WON',
 						winner: req.session.username,
 						word: game.word,
-					});
+					}) &&
+					destroyLobby(lobby);
 			} else if (game.moves.length === 12) {
 				game.gameStatus = GameStatus.TIED;
 				lobby &&
 					lobby.namespace.emit(SocketEvent.GAME_ENDED, {
 						result: 'TIED',
 						word: game.word,
-					});
+					}) &&
+					destroyLobby(lobby);
 			}
 			await game.save();
 			return res.status(200).json({

@@ -39,7 +39,6 @@ export interface Board {
 }
 
 export interface Lobby {
-	hostSocketId: string | undefined;
 	namespace: Namespace;
 	gameId: string;
 }
